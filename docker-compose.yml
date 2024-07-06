@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  traefik:
+    image: traefik:v2.5
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./traefik.toml:/etc/traefik/traefik.toml
+    networks:
+      - web
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://myusername:mypassword@db:5432/mydatabase
+    labels:
+      - "traefik.http.routers.backend.rule=PathPrefix(`/api`)"
+      - "traefik.http.services.backend.loadbalancer.server.port=8000"
+    depends_on:
+      - db
+    networks:
+      - web
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    labels:
+      - "traefik.http.routers.frontend.rule=Host(`raven.domain`)"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
+    networks:
+      - web
+
+  db:
+    image: postgres:13
+    environment:
+      - POSTGRES_USER=myusername
+      - POSTGRES_PASSWORD=mypassword
+      - POSTGRES_DB=mydatabase
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks:
+      - web
+
+  adminer:
+    image: adminer
+    labels:
+      - "traefik.http.routers.adminer.rule=Host(`db.raven.domain`)"
+    ports:
+      - "8080:8080"
+    networks:
+      - web
+
+  proxy-manager:
+    image: jc21/nginx-proxy-manager:latest
+    ports:
+      - "81:81"
+      - "80:80"
+      - "443:443"
+    environment:
+      - DB_SQLITE_FILE=/data/database.sqlite
+    volumes:
+      - ./data:/data
+      - ./letsencrypt:/etc/letsencrypt
+    labels:
+      - "traefik.http.routers.proxy.rule=Host(`proxy.raven.domain`)"
+    networks:
+      - web
+
+networks:
+  web:
+    external: true
+
+volumes:
+  db-data:
+
