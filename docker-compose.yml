@@ -1,4 +1,4 @@
-version: '3.8'
+version: '3.7'
 
 services:
   traefik:
@@ -6,80 +6,56 @@ services:
     command:
       - "--api.insecure=true"
       - "--providers.docker=true"
-      - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.address=:8000"  # Changed from 80 to 8000
     ports:
-      - "80:80"
+      - "8000:80"  # Changed from 80 to 8000
       - "8080:8080"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./traefik.toml:/etc/traefik/traefik.toml
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./traefik.toml:/etc/traefik/traefik.toml"
+    networks:
+      - web
+    labels:
+      - "traefik.http.routers.api.rule=Host(`proxy.chickenkiller.com`)"
+      - "traefik.http.routers.api.service=api@internal"
+
+  frontend:
+    build:
+      context: ./frontend
+    labels:
+      - "traefik.http.routers.frontend.rule=Host(`raven.chickenkiller.com`)"
     networks:
       - web
 
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile
     environment:
-      - DATABASE_URL=postgresql://myusername:mypassword@db:5432/mydatabase
+      - DATABASE_URL=postgresql://yourusername:yourpassword@db:5432/yourdbname
     labels:
-      - "traefik.http.routers.backend.rule=PathPrefix(`/api`)"
-      - "traefik.http.services.backend.loadbalancer.server.port=80"
-    depends_on:
-      - db
-    networks:
-      - web
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    labels:
-      - "traefik.http.routers.frontend.rule=Host(`raven.domain`)"
-      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
+      - "traefik.http.routers.backend.rule=Host(`raven.chickenkiller.com`) && PathPrefix(`/api`)"
     networks:
       - web
 
   db:
     image: postgres:13
     environment:
-      - POSTGRES_USER=myusername
-      - POSTGRES_PASSWORD=mypassword
-      - POSTGRES_DB=mydatabase
-    volumes:
-      - db-data:/var/lib/postgresql/data
+      POSTGRES_USER: yourusername
+      POSTGRES_PASSWORD: yourpassword
+      POSTGRES_DB: yourdbname
     networks:
       - web
 
   adminer:
     image: adminer
-    labels:
-      - "traefik.http.routers.adminer.rule=Host(`db.raven.domain`)"
     ports:
-      - "8080:8080"
-    networks:
-      - web
-
-  proxy-manager:
-    image: jc21/nginx-proxy-manager:latest
-    ports:
-      - "81:81"
-      - "80:80"
-      - "443:443"
-    environment:
-      - DB_SQLITE_FILE=/data/database.sqlite
-    volumes:
-      - ./data:/data
-      - ./letsencrypt:/etc/letsencrypt
+      - "8081:8080"  # Changed from 8080 to 8081
     labels:
-      - "traefik.http.routers.proxy.rule=Host(`proxy.raven.domain`)"
+      - "traefik.http.routers.adminer.rule=Host(`db.chickenkiller.com`)"
     networks:
       - web
 
 networks:
   web:
     external: true
-
-volumes:
-  db-data:
 
