@@ -24,7 +24,7 @@ services:
       - DATABASE_URL=postgresql://myusername:mypassword@db:5432/mydatabase
     labels:
       - "traefik.http.routers.backend.rule=PathPrefix(`/api`)"
-      - "traefik.http.services.backend.loadbalancer.server.port=8000"
+      - "traefik.http.services.backend.loadbalancer.server.port=80"
     depends_on:
       - db
     networks:
