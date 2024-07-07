@@ -1,17 +1,26 @@
 
-FROM python:3.10-slim
+FROM python:3.7-slim
 
-# working directory
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    libcrypt1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set the working directory inside the container
 WORKDIR /app
 
+# Copy your application files into the container
 COPY . /app
 
-RUN pip install --no-cache-dir -r requirements.txt
+# Install necessary Python packages
+RUN pip install -r requirements.txt
 
-# Make port 80 available
+# Make port 80 available to the world outside this container
 EXPOSE 80
 
+# Define environment variable if needed
 ENV NAME World
 
-# Run app.py
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80"]
+# Command to run your application
+CMD ["python", "app.py"]
+
