@@ -1,4 +1,4 @@
-
+# Use an appropriate base image
 FROM python:3.7-slim
 
 # Install system dependencies
@@ -18,9 +18,6 @@ RUN pip install -r requirements.txt
 # Make port 80 available to the world outside this container
 EXPOSE 80
 
-# Define environment variable if needed
-ENV NAME World
-
 # Command to run your application
-CMD ["python", "app.py"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80"]
 
