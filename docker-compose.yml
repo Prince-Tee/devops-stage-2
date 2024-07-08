@@ -1,42 +1,5 @@
 version: '3.7'
-
 services:
-  traefik:
-    image: traefik:v2.5
-    command:
-      - "--api.insecure=true"
-      - "--providers.docker=true"
-      - "--entrypoints.web.address=:8000"  # Changed from 80 to 8000
-    ports:
-      - "8000:80"  # Changed from 80 to 8000
-      - "8080:8080"
-    volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
-      - "./traefik.toml:/etc/traefik/traefik.toml"
-    networks:
-      - web
-    labels:
-      - "traefik.http.routers.api.rule=Host(`proxy.chickenkiller.com`)"
-      - "traefik.http.routers.api.service=api@internal"
-
-  frontend:
-    build:
-      context: ./frontend
-    labels:
-      - "traefik.http.routers.frontend.rule=Host(`raven.chickenkiller.com`)"
-    networks:
-      - web
-
-  backend:
-    build:
-      context: ./backend
-    environment:
-      - DATABASE_URL=postgresql://yourusername:yourpassword@db:5432/yourdbname
-    labels:
-      - "traefik.http.routers.backend.rule=Host(`raven.chickenkiller.com`) && PathPrefix(`/api`)"
-    networks:
-      - web
-
   db:
     image: postgres:13
     environment:
@@ -48,10 +11,59 @@ services:
 
   adminer:
     image: adminer
+    restart: always
     ports:
-      - "8081:8080"  # Changed from 8080 to 8081
+      - "8081:8080"
+    networks:
+      - web
+
+  backend:
+    build: ./backend
+    networks:
+      - web
+    environment:
+      - DATABASE_URL=postgresql://yourusername:yourpassword@db/yourdbname
+      - TRAEFIK_HOST=raven.taiwo.chickenkiller.com
     labels:
-      - "traefik.http.routers.adminer.rule=Host(`db.chickenkiller.com`)"
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=Host(`raven.taiwo.chickenkiller.com`)"
+      - "traefik.http.services.backend.loadbalancer.server.port=8000"
+
+  frontend:
+    build: ./frontend
+    networks:
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`raven.taiwo.chickenkiller.com`)"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
+
+  proxy-manager:
+    image: jc21/nginx-proxy-manager:latest
+    restart: always
+    ports:
+      - "8082:80"
+      - "8444:443"
+    environment:
+      DB_SQLITE_FILE: "/data/database.sqlite"
+    volumes:
+      - ./data:/data
+    networks:
+      - web
+
+  traefik:
+    image: traefik:v2.2
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:8080"
+      - "--entrypoints.websecure.address=:8443"
+    ports:
+      - "8083:8080"
+      - "8445:8443"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "./traefik.toml:/traefik.toml"
     networks:
       - web
 
